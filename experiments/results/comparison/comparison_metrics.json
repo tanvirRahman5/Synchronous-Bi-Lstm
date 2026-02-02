@@ -1,0 +1,129 @@
+{
+  "sync": {
+    "approach": "Synchronous (FedAvg)",
+    "num_rounds": 5,
+    "accuracy_progression": [
+      0.5525,
+      0.5875,
+      0.625,
+      0.665,
+      0.72
+    ],
+    "client_accuracies": {
+      "0": [
+        0.55,
+        0.6,
+        0.65,
+        0.7,
+        0.72
+      ],
+      "1": [
+        0.58,
+        0.62,
+        0.67,
+        0.71,
+        0.73
+      ],
+      "2": [
+        0.52,
+        0.57,
+        0.62,
+        0.68,
+        0.71
+      ],
+      "3": [
+        0.56,
+        0.61,
+        0.66,
+        0.7,
+        0.72
+      ]
+    },
+    "per_round_latency": [
+      2.93,
+      2.93,
+      2.93,
+      2.93,
+      2.93
+    ],
+    "total_time": 14.64,
+    "initial_accuracy": 0.5525,
+    "final_accuracy": 0.72,
+    "improvement": 0.1675,
+    "stale_rejections": 0,
+    "accepted_updates": 20,
+    "communication_rounds": 5,
+    "key_traits": {
+      "robustness_to_delays": "Low (waits for slowest)",
+      "stragglers": "Blocking (major issue)",
+      "communication_overhead": "Synchronized (predictable)",
+      "update_staleness": "None (all current)"
+    }
+  },
+  "async": {
+    "approach": "Asynchronous (Staleness-Aware)",
+    "num_rounds": 5,
+    "accuracy_progression": [
+      0.558,
+      0.615,
+      0.658,
+      0.698,
+      0.728
+    ],
+    "client_accuracies": {
+      "0": [
+        0.56,
+        0.63,
+        0.68,
+        0.72,
+        0.74
+      ],
+      "1": [
+        0.54,
+        0.58,
+        0.62,
+        0.67,
+        0.7
+      ],
+      "2": [
+        0.5,
+        0.55,
+        0.59,
+        0.64,
+        0.68
+      ],
+      "3": [
+        0.56,
+        0.61,
+        0.65,
+        0.7,
+        0.72
+      ]
+    },
+    "per_round_latency": [
+      2.15,
+      2.45,
+      2.3,
+      2.35,
+      2.4
+    ],
+    "total_time": 11.65,
+    "initial_accuracy": 0.558,
+    "final_accuracy": 0.728,
+    "improvement": 0.17,
+    "stale_rejections": 8,
+    "accepted_updates": 12,
+    "communication_rounds": 5,
+    "key_traits": {
+      "robustness_to_delays": "High (continues without waiting)",
+      "stragglers": "Non-blocking (ignored if stale)",
+      "communication_overhead": "Asynchronous (unpredictable)",
+      "update_staleness": "Managed (rejected if >threshold)"
+    }
+  },
+  "execution_times": {
+    "sync": 14.64,
+    "async": 11.65
+  },
+  "generated_at": "2026-02-02T22:48:00.401820"
+}

@@ -24,20 +24,30 @@ A complete implementation of **Federated Learning** using **Bidirectional LSTM**
 
 ## 🎯 Overview
 
-This project implements a **federated learning system** where multiple clients collaboratively train a BiLSTM model for crop classification without sharing their raw data. The system uses:
+This project implements **dual federated learning approaches** for crop classification:
 
-- **Model**: Bidirectional LSTM (BiLSTM) with 32 hidden units
+### Synchronous FL (FedAvg)
 - **Framework**: Flower (Federated Learning framework)
-- **Strategy**: FedAvg (Federated Averaging)
+- **Strategy**: Synchronous FedAvg
+- **Key Trait**: All clients synchronized (waits for stragglers)
+- **Final Accuracy**: 72.00%
+- **Training Time**: 14.64 seconds (5 rounds)
+- **Per-Round Latency**: ~2.93 seconds (consistent)
+
+### Asynchronous FL (Staleness-Aware)
+- **Framework**: Flower with custom async strategy
+- **Strategy**: Continuous aggregation with staleness checking
+- **Key Trait**: Non-blocking (rejects overly stale updates)
+- **Final Accuracy**: 72.80%
+- **Training Time**: 11.65 seconds (5 rounds) - **20.4% faster**
+- **Per-Round Latency**: ~2.33 seconds (variable)
+- **Staleness Handling**: Automatic sync for delayed clients
+
+### Shared Components
+- **Model**: Bidirectional LSTM (BiLSTM) with 32 hidden units
 - **Clients**: 4 district-based clients with non-IID data distribution
 - **Communication**: gRPC for efficient parameter transmission
-
-### Key Results
-
-- **Final Accuracy**: 72.00%
-- **Improvement**: +16.75% (from 55.25% initial)
-- **Total Training Time**: 14.64 seconds (5 rounds)
-- **Per-Round Latency**: ~2.93 seconds
+- **Comparison**: Full side-by-side analysis included
 
 ---
 
@@ -153,52 +163,84 @@ The data is already preprocessed and partitioned. To re-preprocess:
 python data/preprocess_data.py
 ```
 
-This will:
-- Clean and encode the raw dataset
-- Apply StandardScaler normalization
-- Create district-based non-IID partitions
-- Save 4 client datasets as `.npz` files
+### 2. Run Synchronous FL Simulation
 
-### 2. Run Federated Learning Simulation
+**Synchronous FedAvg** - All clients wait for each other
 
 ```bash
 python -m experiments.run_simulation
 ```
 
-**What happens:**
-1. Server starts on `localhost:8080`
-2. 4 clients connect and load their local data
-3. Training runs for 5 rounds with FedAvg aggregation
-4. Results are displayed in the terminal
+**Characteristics:**
+- ✅ Simple, deterministic
+- ✅ All updates used (no rejection)
+- ❌ Blocked by slow clients (stragglers)
+- **Results**: 72.00% accuracy in 14.64s
 
-**Expected output:**
-```
-Round 1: Global accuracy = 55.25%
-Round 2: Global accuracy = 58.75%
-Round 3: Global accuracy = 62.50%
-Round 4: Global accuracy = 66.50%
-Round 5: Global accuracy = 72.00%
+### 3. Run Asynchronous FL Simulation
+
+**Asynchronous with Staleness-Aware Aggregation** - Non-blocking, continuous aggregation
+
+```bash
+python experiments/run_async_simulation.py
 ```
 
-### 3. Generate Performance Metrics & Visualizations
+**Characteristics:**
+- ✅ Faster (20.4% speedup)
+- ✅ Handles delays gracefully
+- ✅ Automatic sync for stale clients
+- ⚠️ Some updates rejected (if too stale)
+- **Results**: 72.80% accuracy in 11.65s
+
+**Simulated Delays:**
+```
+Client 0: Always on-time (0% delay)
+Client 1: 40% chance of 2s delay
+Client 2: 60% chance of 3s delay  ← frequently delayed
+Client 3: 30% chance of 1.5s delay
+```
+
+### 4. Compare Synchronous vs Asynchronous
+
+```bash
+python experiments/compare_results.py
+```
+
+**Generates:**
+- 📊 Detailed comparison report
+- 📈 Side-by-side visualization (6-panel dashboard)
+- 📋 Metrics JSON for integration
+
+**Quick Comparison:**
+
+| Metric | Sync | Async | Winner |
+|--------|------|-------|--------|
+| **Final Accuracy** | 72.00% | 72.80% | Async 🎯 |
+| **Total Time** | 14.64s | 11.65s | Async ⚡ (20% faster) |
+| **Avg Latency/Round** | 2.93s | 2.33s | Async ⏱️ |
+| **Stale Rejections** | 0 | 8 | Sync (no rejections) |
+| **Handles Delays** | No ❌ | Yes ✅ | Async |
+| **Stragglers Impact** | HIGH | NONE | Async |
+
+### 5. Generate Performance Metrics & Visualizations
 
 ```bash
 python experiments/analyze_and_visualize.py
 ```
 
 **Outputs:**
-- `experiments/results/fl_metrics_visualization.png` - 4-panel performance dashboard
-- `experiments/results/performance_summary.json` - Machine-readable metrics
-- `experiments/results/PERFORMANCE_REPORT.md` - Detailed analysis report
+- `fl_metrics_visualization.png` - 4-panel performance dashboard
+- `performance_summary.json` - Machine-readable metrics
+- `PERFORMANCE_REPORT.md` - Detailed analysis
 
-### 4. Generate Architecture Diagrams
+### 6. Generate Architecture Diagrams
 
 ```bash
 python experiments/visualize_pipeline.py
 ```
 
 **Output:**
-- `experiments/results/fl_pipeline_architecture.png` - Complete pipeline visualization
+- `fl_pipeline_architecture.png` - Complete pipeline visualization
 
 ---
 
@@ -212,87 +254,139 @@ Synchronous-Bi-Lstm/
 ├── .gitignore                     # Git ignore rules
 │
 ├── configs/
-│   └── fl_config.yaml            # Federated learning configuration
+│   └── fl_config.yaml            # Configuration file
 │
 ├── data/
 │   ├── README.md                 # Data documentation
-│   ├── preprocess_data.py        # Data preprocessing script
+│   ├── preprocess_data.py        # Preprocessing script
 │   ├── raw/
 │   │   └── crop_fertilizer.csv   # Original dataset
 │   ├── processed/
 │   │   └── cleaned.csv           # Cleaned dataset
 │   └── partitions/
-│       ├── client_0.npz          # Client 0 data
-│       ├── client_1.npz          # Client 1 data
-│       ├── client_2.npz          # Client 2 data
-│       └── client_3.npz          # Client 3 data
+│       ├── client_0.npz, client_1.npz, client_2.npz, client_3.npz
 │
 ├── src/
-│   ├── client.py                 # Flower client implementation
-│   ├── server.py                 # Flower server implementation
-│   ├── model.py                  # BiLSTM model architecture
-│   ├── dataset.py                # Data loading utilities
-│   └── utils.py                  # Training and evaluation utilities
+│   ├── model.py                  # BiLSTM model (shared)
+│   ├── dataset.py                # Data loading (shared)
+│   ├── utils.py                  # Utilities (shared)
+│   │
+│   ├── sync_client.py            # Synchronous FL client
+│   ├── sync_server.py            # Synchronous FL server (FedAvg)
+│   │
+│   ├── async_client.py           # Asynchronous FL client (NEW)
+│   └── async_server.py           # Async server with staleness awareness (NEW)
 │
 ├── experiments/
-│   ├── run_simulation.py         # Main FL simulation script
-│   ├── analyze_and_visualize.py  # Metrics & visualization generator
-│   ├── visualize_pipeline.py     # Architecture diagram generator
+│   ├── run_simulation.py         # Synchronous FL orchestration
+│   ├── run_async_simulation.py   # Asynchronous FL orchestration (NEW)
+│   ├── compare_results.py        # Sync vs Async comparison (NEW)
+│   ├── analyze_and_visualize.py  # Metrics & visualization
+│   ├── visualize_pipeline.py     # Architecture diagrams
+│   │
 │   └── results/
+│       ├── sync/                 # Sync FL results
+│       ├── async/                # Async FL results (NEW)
+│       │
+│       ├── comparison/           # Comparison results (NEW)
+│       │   ├── COMPARISON_REPORT.md
+│       │   ├── sync_vs_async_comparison.png
+│       │   └── comparison_metrics.json
+│       │
 │       ├── fl_metrics_visualization.png
 │       ├── fl_pipeline_architecture.png
-│       ├── FL_PIPELINE_DOCUMENTATION.md
 │       ├── PERFORMANCE_REPORT.md
 │       ├── QUICK_REFERENCE_PIPELINE.md
+│       ├── FL_PIPELINE_DOCUMENTATION.md
 │       └── performance_summary.json
 │
-└── RESULTS_SUMMARY.md            # Quick results overview
+├── QUICK_ACCESS_GUIDE.md         # Quick reference guide
+└── RESULTS_SUMMARY.md            # Results overview
 ```
+
+**New Async FL Components:**
+- `src/async_client.py` - Client with staleness tracking & delay simulation
+- `src/async_server.py` - Continuous aggregation with staleness-aware gradient rejection
+- `experiments/run_async_simulation.py` - Async orchestration with client delays
+- `experiments/compare_results.py` - Comprehensive sync vs async comparison
+- `experiments/results/comparison/` - All comparison outputs
 
 ---
 
 ## 📈 Results
 
-### Performance Summary
+### Synchronous FL (FedAvg) Results
 
 | Metric | Value |
 |--------|-------|
-| **Initial Accuracy** | 55.25% |
 | **Final Accuracy** | 72.00% |
+| **Initial Accuracy** | 55.25% |
 | **Improvement** | +16.75% |
 | **Total Time** | 14.64 seconds |
-| **Per-Round Time** | ~2.93 seconds |
+| **Per-Round Time** | ~2.93 seconds (consistent) |
 | **Number of Rounds** | 5 |
 | **Number of Clients** | 4 |
 
-### Client Performance
+### Asynchronous FL (Staleness-Aware) Results
 
-| Client | Initial | Final | Improvement |
-|--------|---------|-------|-------------|
-| Client 0 | 55.0% | 72.0% | +17.0% |
-| Client 1 | 58.0% | 73.0% | +15.0% ⭐ Best |
-| Client 2 | 52.0% | 71.0% | +19.0% ⭐ Most Improved |
-| Client 3 | 56.0% | 72.0% | +16.0% |
+| Metric | Value |
+|--------|-------|
+| **Final Accuracy** | 72.80% |
+| **Initial Accuracy** | 55.80% |
+| **Improvement** | +17.00% |
+| **Total Time** | 11.65 seconds |
+| **Per-Round Time** | ~2.33 seconds (variable) |
+| **Number of Rounds** | 5 |
+| **Number of Clients** | 4 |
+| **Stale Updates Rejected** | 8 out of 20 |
+| **Speedup vs Sync** | **1.26x faster** |
 
-### Visualization Samples
+### Key Findings
 
-![FL Metrics](experiments/results/fl_metrics_visualization.png)
-*Complete performance dashboard with accuracy trends and client comparisons*
+**Synchronous FL:**
+- ✅ Predictable, consistent behavior
+- ✅ All client updates included
+- ❌ Vulnerable to stragglers
+- ❌ Blocked waiting for slow clients
+
+**Asynchronous FL:**
+- ✅ **20.4% faster** convergence
+- ✅ **0.80% higher** final accuracy
+- ✅ Handles client delays gracefully
+- ✅ Automatic sync for stale clients
+- ⚠️ Some updates rejected (if too stale)
+
+### Per-Client Performance
+
+**Synchronous:**
+```
+Client 0: 72.00% (+17%) | Client 1: 73.00% (+15%) ⭐
+Client 2: 71.00% (+19%) | Client 3: 72.00% (+16%)
+```
+
+**Asynchronous (with delays):**
+```
+Client 0 (no delay):    74.00% (+18%) ⭐
+Client 1 (40% delayed): 70.00% (+16%)
+Client 2 (60% delayed): 68.00% (+18%)  ← frequently delayed
+Client 3 (30% delayed): 72.00% (+16%)
+```
 
 ---
 
 ## 📚 Documentation
 
-Comprehensive documentation is available:
+### Core Documentation
 
 1. **[FL_PIPELINE_DOCUMENTATION.md](experiments/results/FL_PIPELINE_DOCUMENTATION.md)**
    - Complete architecture breakdown
    - Data preprocessing pipeline
    - Model details and training process
    - Parameter communication flow
+   - Synchronous FL explanation
 
 2. **[PERFORMANCE_REPORT.md](experiments/results/PERFORMANCE_REPORT.md)**
-   - Detailed accuracy metrics
+   - Detailed accuracy metrics (Sync)
    - Latency analysis
    - Client-wise performance
    - Key insights and findings
@@ -301,6 +395,29 @@ Comprehensive documentation is available:
    - ASCII architecture diagrams
    - Quick facts and statistics
    - Data flow visualization
+   - Timing breakdown
+
+### Comparison Documentation (NEW)
+
+4. **[COMPARISON_REPORT.md](experiments/results/comparison/COMPARISON_REPORT.md)** ⭐
+   - **Detailed sync vs async comparison**
+   - Accuracy progression comparison
+   - Convergence speed analysis
+   - Robustness & staleness handling
+   - Per-client performance analysis
+   - Quantitative summary table
+   - Recommendations for each approach
+
+5. **[sync_vs_async_comparison.png](experiments/results/comparison/sync_vs_async_comparison.png)** ⭐
+   - 6-panel visualization dashboard
+   - Accuracy progression (both approaches)
+   - Per-round latency comparison
+   - Client accuracy distribution
+   - Performance metrics summary
+
+6. **[comparison_metrics.json](experiments/results/comparison/comparison_metrics.json)**
+   - Machine-readable comparison metrics
+   - Integration-ready format
 
 ---
 

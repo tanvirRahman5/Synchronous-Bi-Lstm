@@ -2,8 +2,8 @@
 import multiprocessing as mp
 import threading
 import time
-from src.client import start_fl_client
-from src.server import start_server
+from src.sync_client import start_fl_client
+from src.sync_server import start_server
 
 client_ids = [0, 1, 2, 3]
 
