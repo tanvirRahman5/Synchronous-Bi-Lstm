@@ -1,0 +1,12 @@
+{
+  "initial_accuracy": 0.5525,
+  "final_accuracy": 0.72,
+  "improvement": 0.16749999999999998,
+  "average_accuracy": 0.6439999999999999,
+  "best_accuracy": 0.72,
+  "best_round": 5,
+  "total_time": 14.637428045272827,
+  "avg_latency_per_round": 2.9274856090545653,
+  "num_rounds": 5,
+  "num_clients": 4
+}
